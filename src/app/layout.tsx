@@ -4,11 +4,6 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import {
   ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
 } from '@clerk/nextjs'
 
 

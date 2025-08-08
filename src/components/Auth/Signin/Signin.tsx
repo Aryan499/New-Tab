@@ -8,6 +8,7 @@ import {
 import { CalendarDays } from 'lucide-react';
 import { SignInButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
 
 const SiginComponent = () => {
 
@@ -43,9 +44,11 @@ const SiginComponent = () => {
  
  >
   <Button>
-    <img 
-      src="https://www.google.com/favicon.ico" 
+    <Image 
+      src="/google.png" 
       alt="Google"
+      width={32}
+      height={32}
       className="w-5 h-5 mr-2"
     />
     Continue with Google

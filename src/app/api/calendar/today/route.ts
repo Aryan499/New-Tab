@@ -1,6 +1,37 @@
 import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { google } from 'googleapis';
+import { google, calendar_v3 } from 'googleapis';
+import { GaxiosError } from 'gaxios';
+
+// Interfaces for better type safety
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: Date;
+  time: string;
+  duration: string;
+  location?: string;
+  attendees?: number;
+  priority: 'high' | 'medium' | 'low';
+  description?: string;
+  indicator: string;
+  hour: string;
+  minute: string;
+  ampm: 'AM' | 'PM';
+  meetLink?: string;
+}
+
+interface EventRequestBody {
+  summary: string;
+  description?: string;
+  start: {
+    dateTime: string;
+  };
+  end: {
+    dateTime: string;
+  };
+  createMeetLink?: boolean;
+}
 
 // Helper function to get an authenticated Google Calendar client
 const getCalendarClient = async (userId: string) => {
@@ -53,9 +84,9 @@ export async function GET(request: Request) {
 
       const googleEvents = eventsResponse.data.items || [];
       
-      const transformedEvents = googleEvents.map((googleEvent: any) => {
-        const startDateTime = new Date(googleEvent.start.dateTime);
-        const endDateTime = new Date(googleEvent.end.dateTime);
+      const transformedEvents: CalendarEvent[] = googleEvents.map((googleEvent: calendar_v3.Schema$Event) => {
+        const startDateTime = new Date(googleEvent.start?.dateTime || googleEvent.start?.date || '');
+        const endDateTime = new Date(googleEvent.end?.dateTime || googleEvent.end?.date || '');
 
         const durationMs = endDateTime.getTime() - startDateTime.getTime();
         const durationMinutes = Math.round(durationMs / (1000 * 60));
@@ -76,25 +107,25 @@ export async function GET(request: Request) {
         let meetLink: string | undefined;
         if (googleEvent.hangoutLink) {
           meetLink = googleEvent.hangoutLink;
-        } else if (googleEvent.conferenceData && googleEvent.conferenceData.entryPoints) {
+        } else if (googleEvent.conferenceData?.entryPoints) {
           const videoEntryPoint = googleEvent.conferenceData.entryPoints.find(
-            (entry: any) => entry.entryPointType === 'video'
+            (entry) => entry.entryPointType === 'video'
           );
-          if (videoEntryPoint) {
+          if (videoEntryPoint?.uri) {
             meetLink = videoEntryPoint.uri;
           }
         }
 
         return {
-          id: googleEvent.id,
+          id: googleEvent.id || '',
           title: googleEvent.summary || 'No Title',
           date: startDateTime,
           time: `${displayHour}:${eventMinute.toString().padStart(2, '0')} ${ampm}`,
           duration: durationString,
-          location: googleEvent.location,
+          location: googleEvent.location ?? undefined,
           attendees: googleEvent.attendees ? googleEvent.attendees.length : 0,
-          priority: 'medium',
-          description: googleEvent.description,
+          priority: 'medium', // Default priority, can be customized
+          description: googleEvent.description || '',
           indicator: 'bg-gray-300', // Default indicator
           hour: displayHour.toString().padStart(2, '0'),
           minute: eventMinute.toString().padStart(2, '0'),
@@ -110,26 +141,22 @@ export async function GET(request: Request) {
         count: transformedEvents.length
       });
 
-    } catch (calendarError: any) {
-      console.error('Error listing today\'s calendar events:', calendarError.message);
-      if (calendarError.code === 401 || calendarError.code === 403) {
+    } catch (calendarError) {
+      if (calendarError instanceof GaxiosError && (calendarError.response?.status === 401 || calendarError.response?.status === 403)) {
         return NextResponse.json({
-          error: `Google Calendar API access denied: ${calendarError.message}. This might be due to expired token or incorrect scopes.`,
+          error: `Google Calendar API access denied. This might be due to an expired token or incorrect scopes.`,
           needsReauth: true
-        }, { status: calendarError.code });
+        }, { status: calendarError.response.status });
       }
-      return NextResponse.json({ error: `Failed to list today's calendar events: ${calendarError.message}` }, { status: 500 });
+      const errorMessage = calendarError instanceof Error ? calendarError.message : 'Unknown error';
+      console.error('Error listing today\'s calendar events:', errorMessage);
+      return NextResponse.json({ error: `Failed to list today's calendar events: ${errorMessage}` }, { status: 500 });
     }
 
-  } catch (error: any) {
-    if (error.message.includes('access token')) {
-       return NextResponse.json({
-         error: error.message,
-         needsReauth: true
-       }, { status: 403 });
-    }
+  } catch (error) {
+   
     console.error('General Error in GET API route:', error);
-    return NextResponse.json({ error: `Internal Server Error: ${error.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Internal Server Error: ${error}` }, { status: 500 });
   }
 }
 
@@ -143,37 +170,36 @@ export async function POST(request: Request) {
     }
 
     const calendar = await getCalendarClient(userId);
-    const eventData = await request.json();
+    const eventData: EventRequestBody = await request.json();
     const calendarId = 'primary';
 
     try {
-      const event: any = {
-        'summary': eventData.summary,
-        'description': eventData.description,
-        'start': {
-          'dateTime': eventData.start.dateTime,
-          'timeZone': eventData.timeZone || 'Asia/Kolkata',
+      const event: calendar_v3.Schema$Event = {
+        summary: eventData.summary,
+        description: eventData.description,
+        start: {
+          dateTime: eventData.start.dateTime,
+          timeZone: 'Asia/Kolkata',
         },
-        'end': {
-          'dateTime': eventData.end.dateTime,
-          'timeZone': eventData.timeZone || 'Asia/Kolkata',
+        end: {
+          dateTime: eventData.end.dateTime,
+          timeZone: 'Asia/Kolkata',
         },
       };
 
-      // Conditionally request a Google Meet link
       if (eventData.createMeetLink) {
         event.conferenceData = {
-          'createRequest': {
-            'requestId': `meet-${Date.now()}`, // Use a dynamic unique ID
-            'conferenceSolutionKey': { 'type': 'hangoutsMeet' }
+          createRequest: {
+            requestId: `meet-${Date.now()}`,
+            conferenceSolutionKey: { type: 'hangoutsMeet' }
           }
         };
       }
 
       const eventResponse = await calendar.events.insert({
-        calendarId: calendarId,
+        calendarId,
         requestBody: event,
-        conferenceDataVersion: 1, // This is required for creating a conference link
+        conferenceDataVersion: 1,
       });
 
       return NextResponse.json({
@@ -181,14 +207,15 @@ export async function POST(request: Request) {
         event: eventResponse.data,
       }, { status: 201 });
 
-    } catch (calendarError: any) {
-      console.error('Error creating event:', calendarError.message);
-      return NextResponse.json({ error: `Failed to create event: ${calendarError.message}` }, { status: 500 });
+    } catch (calendarError) {
+      const errorMessage = calendarError instanceof Error ? calendarError.message : 'Unknown error';
+      console.error('Error creating event:', errorMessage);
+      return NextResponse.json({ error: `Failed to create event: ${errorMessage}` }, { status: 500 });
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('General Error in POST API route:', error);
-    return NextResponse.json({ error: `Internal Server Error: ${error.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Internal Server Error: ${error}` }, { status: 500 });
   }
 }
 
@@ -202,7 +229,7 @@ export async function PUT(request: Request) {
     }
 
     const calendar = await getCalendarClient(userId);
-    const eventData = await request.json();
+    const eventData: EventRequestBody = await request.json();
     const url = new URL(request.url);
     const eventId = url.searchParams.get('eventId');
     const calendarId = 'primary';
@@ -212,34 +239,33 @@ export async function PUT(request: Request) {
     }
 
     try {
-      const updatedEvent: any = {
-        'summary': eventData.summary,
-        'description': eventData.description,
-        'start': {
-          'dateTime': eventData.start.dateTime,
-          'timeZone': eventData.timeZone || 'Asia/Kolkata',
+      const updatedEvent: calendar_v3.Schema$Event = {
+        summary: eventData.summary,
+        description: eventData.description,
+        start: {
+          dateTime: eventData.start.dateTime,
+          timeZone: 'Asia/Kolkata',
         },
-        'end': {
-          'dateTime': eventData.end.dateTime,
-          'timeZone': eventData.timeZone || 'Asia/Kolkata',
+        end: {
+          dateTime: eventData.end.dateTime,
+          timeZone: 'Asia/Kolkata',
         },
       };
 
-      // Conditionally request a Google Meet link on update
       if (eventData.createMeetLink) {
         updatedEvent.conferenceData = {
-          'createRequest': {
-            'requestId': `meet-${Date.now()}`,
-            'conferenceSolutionKey': { 'type': 'hangoutsMeet' }
+          createRequest: {
+            requestId: `meet-${Date.now()}`,
+            conferenceSolutionKey: { type: 'hangoutsMeet' }
           }
         };
       }
       
       const eventResponse = await calendar.events.update({
-        calendarId: calendarId,
-        eventId: eventId,
+        calendarId,
+        eventId,
         requestBody: updatedEvent,
-        conferenceDataVersion: 1, // Required for updating with conference data
+        conferenceDataVersion: 1,
       });
 
       return NextResponse.json({
@@ -247,14 +273,15 @@ export async function PUT(request: Request) {
         event: eventResponse.data,
       }, { status: 200 });
 
-    } catch (calendarError: any) {
-      console.error('Error updating event:', calendarError.message);
-      return NextResponse.json({ error: `Failed to update event: ${calendarError.message}` }, { status: 500 });
+    } catch (calendarError) {
+      const errorMessage = calendarError instanceof Error ? calendarError.message : 'Unknown error';
+      console.error('Error updating event:', errorMessage);
+      return NextResponse.json({ error: `Failed to update event: ${errorMessage}` }, { status: 500 });
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('General Error in PUT API route:', error);
-    return NextResponse.json({ error: `Internal Server Error: ${error.message}` }, { status: 500 });
+    return NextResponse.json({ error: `Internal Server Error: ${error}` }, { status: 500 });
   }
 }
 
@@ -278,20 +305,20 @@ export async function DELETE(request: Request) {
 
     try {
       await calendar.events.delete({
-        calendarId: calendarId,
-        eventId: eventId,
+        calendarId,
+        eventId,
       });
 
-      // Return a response with a 204 status code and no body
       return new NextResponse(null, { status: 204 });
 
-    } catch (calendarError: any) {
-      console.error('Error deleting event:', calendarError.message);
-      return new NextResponse(`Failed to delete event: ${calendarError.message}`, { status: 500 });
+    } catch (calendarError) {
+      const errorMessage = calendarError instanceof Error ? calendarError.message : 'Unknown error';
+      console.error('Error deleting event:', errorMessage);
+      return new NextResponse(`Failed to delete event: ${errorMessage}`, { status: 500 });
     }
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('General Error in DELETE API route:', error);
-    return new NextResponse(`Internal Server Error: ${error.message}`, { status: 500 });
+    return new NextResponse(`Internal Server Error: ${error}`, { status: 500 });
   }
 }
