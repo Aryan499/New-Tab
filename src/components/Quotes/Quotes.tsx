@@ -1,12 +1,9 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import allQuotes from '@/data/quotes.json';
+import { Quote } from '@/types/Quote.types'; 
 
-// Define a type for the quote object
-interface Quote {
-  q: string;
-  a: string;
-}
+
 
 const Quotes = () => {
   const [quote, setQuote] = useState<Quote | null>(null);
