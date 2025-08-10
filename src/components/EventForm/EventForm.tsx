@@ -37,7 +37,7 @@ import { CalendarIcon } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 // Use the main Event interface from the DayPlanner component
-import { Event } from "../DayPlanner/DayPlanner";
+import { Event } from "@/types/DailyPlanner.types";
 
 // Event Form Component
 interface EventFormProps {

@@ -5,15 +5,12 @@ import DayPlanner from "@/components/DayPlanner/DayPlanner";
 import TimeDisplay from "@/components/TimeDisplay/TimeDisplay";
 import SiginComponent from "@/components/Auth/Signin/Signin";
 import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { LogOut, Quote } from 'lucide-react';
+import Quotes from '@/components/Quotes/Quotes';
 
 
 
 export default function Home() {
-  
-
-
-  
 
   return (
     <>
@@ -30,8 +27,9 @@ export default function Home() {
         
         <div className='flex items-center justify-center'>
           <div className="w-full max-w-[700px] flex flex-col">
-            <div>
+            <div className='mb-5'>
               <TimeDisplay />
+             <Quotes/>
             </div>
             <div className="flex justify-center">
               <SearchBar />

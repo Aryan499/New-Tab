@@ -2,36 +2,7 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { google, calendar_v3 } from 'googleapis';
 import { GaxiosError } from 'gaxios';
-
-// Interfaces for better type safety
-interface CalendarEvent {
-  id: string;
-  title: string;
-  date: Date;
-  time: string;
-  duration: string;
-  location?: string;
-  attendees?: number;
-  priority: 'high' | 'medium' | 'low';
-  description?: string;
-  indicator: string;
-  hour: string;
-  minute: string;
-  ampm: 'AM' | 'PM';
-  meetLink?: string;
-}
-
-interface EventRequestBody {
-  summary: string;
-  description?: string;
-  start: {
-    dateTime: string;
-  };
-  end: {
-    dateTime: string;
-  };
-  createMeetLink?: boolean;
-}
+import { EventRequestBody,CalendarEvent } from "@/types/Routes.type";
 
 // Helper function to get an authenticated Google Calendar client
 const getCalendarClient = async (userId: string) => {

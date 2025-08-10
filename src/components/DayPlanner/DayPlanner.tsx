@@ -17,26 +17,8 @@ import {
 import { CalendarDays, Clock, Plus, Edit, Trash2, Video, RefreshCw } from "lucide-react";
 import { EventForm } from "../EventForm/EventForm";
 import { toast } from "sonner";
+import { Event } from "@/types/DailyPlanner.types";
 
-
-// Define the Event interface, now with an optional meetLink property
-export interface Event {
-  id: string; // Google event IDs are strings
-  title: string;
-  date: Date;
-  time: string;
-  duration: string;
-  location?: string;
-  attendees?: number;
-  priority: 'high' | 'medium' | 'low';
-  description?: string;
-  indicator: string;
-  hour: string;
-  minute: string;
-  ampm: 'AM' | 'PM';
-  scheduleMeeting?:boolean |undefined;
-  meetLink?: string; // New optional property for the Google Meet link
-}
 
 const DayPlanner = () => {
   const [events, setEvents] = useState<Event[]>([]);

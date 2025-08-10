@@ -156,6 +156,7 @@
   color: #888;
 }
 .anton {
-  font-family: var(--font-anto);
+  font-family: var(--font-anton);
+  letter-spacing: 5px;
   font-weight: 900;
 }
