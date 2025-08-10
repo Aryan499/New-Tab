@@ -5,7 +5,7 @@ import DayPlanner from "@/components/DayPlanner/DayPlanner";
 import TimeDisplay from "@/components/TimeDisplay/TimeDisplay";
 import SiginComponent from "@/components/Auth/Signin/Signin";
 import { Button } from '@/components/ui/button';
-import { LogOut, Quote } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import Quotes from '@/components/Quotes/Quotes';
 
 
