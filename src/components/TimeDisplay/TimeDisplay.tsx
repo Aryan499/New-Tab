@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Quotes from "../Quotes/Quotes";
 
 export const TimeDisplay = () => {
   const getCurrentTime = () =>
@@ -23,9 +24,17 @@ export const TimeDisplay = () => {
   }, []);
 
   return (
+    <>
+    {mounted ?
+    <>
     <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl text-center anton mt-10 sm:mt-15 md:mt-20 mb-5 sm:mb-8 md:mb-10">
-      {mounted ? currentTime : ""}
+       {currentTime}
     </h1>
+    <Quotes/>
+    </>
+    : ""}
+    </>
+
   );
 };
 

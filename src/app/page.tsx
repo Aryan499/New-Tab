@@ -29,7 +29,7 @@ export default function Home() {
           <div className="w-full max-w-[700px] flex flex-col">
             <div className='mb-5'>
               <TimeDisplay />
-             <Quotes/>
+          
             </div>
             <div className="flex justify-center">
               <SearchBar />
