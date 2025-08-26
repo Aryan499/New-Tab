@@ -160,7 +160,7 @@ export const EventForm: React.FC<EventFormProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent >
         <DialogHeader>
           <DialogTitle className="text-white">
             {event ? 'Edit Event' : 'Add New Event'}
