@@ -6,7 +6,7 @@ import TimeDisplay from "@/components/TimeDisplay/TimeDisplay";
 import SiginComponent from "@/components/Auth/Signin/Signin";
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
-import Quotes from '@/components/Quotes/Quotes';
+
 
 
 

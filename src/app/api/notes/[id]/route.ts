@@ -1,76 +1,150 @@
-import { NextResponse as NextResponseForId } from 'next/server';
-import { default as dbConnectForId } from '@/lib/dbconnect'; // Using aliases to avoid name clashes
-import { default as NoteForId } from '@/models/quicknote';       // Using aliases to avoid name clashes
+import dbConnect from '@/lib/dbconnect';
+import { NextRequest, NextResponse } from 'next/server';
+import Note from '@/models/quicknote';
 import mongoose from 'mongoose';
 
-
-type RouteParams = {
-    params: {
-        id: string;
-    }
+// Define error types
+interface MongoValidationError extends Error {
+  name: 'ValidationError';
+  errors: Record<string, { message: string }>;
 }
 
+// Type guard for validation errors
+function isValidationError(error: unknown): error is MongoValidationError {
+  return error instanceof Error && error.name === 'ValidationError';
+}
 
-export async function GET(_request: Request, { params }: RouteParams) {
-    const { id } =await params;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return NextResponseForId.json({ success: false, error: "Invalid note ID" }, { status: 400 });
-    }
-
+// PUT /api/notes/[id] - Update a specific note
+export async function PUT(request: NextRequest,  { params }: { params: Promise<{ id: string }>} ) {
     try {
-        await dbConnectForId();
-        const note = await NoteForId.findById(id);
-        if (!note) {
-            return NextResponseForId.json({ success: false, error: "Note not found" }, { status: 404 });
+        await dbConnect();
+
+        const { id } =await params;
+
+        // Validate MongoDB ObjectId format
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid note ID format' },
+                { status: 400 }
+            );
         }
-        return NextResponseForId.json({ success: true, data: note }, { status: 200 });
-    } catch (error: any) {
-        console.error(`API GET /api/notes/${id} Error:`, error);
-        return NextResponseForId.json({ success: false, error: 'Server Error' }, { status: 500 });
-    }
-}
 
-export async function PUT(request: Request, { params }: RouteParams) {
-    const { id } =await params;
+        let body: { title?: string; content?: string };
+        try {
+            body = await request.json() as { title?: string; content?: string };
+        } catch {
+            return NextResponse.json(
+                { success: false, error: 'Invalid JSON in request body' },
+                { status: 400 }
+            );
+        }
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return NextResponseForId.json({ success: false, error: "Invalid note ID" }, { status: 400 });
-    }
+        // Validate input - require at least title or content
+        if ((!body.title || body.title.trim() === '') && 
+            (!body.content || body.content.trim() === '')) {
+            return NextResponse.json(
+                { success: false, error: 'Title or content is required.' },
+                { status: 400 }
+            );
+        }
 
-    try {
-        await dbConnectForId();
-        const body = await request.json();
-        const updatedNote = await NoteForId.findByIdAndUpdate(id, body, {
-            new: true, // Return the modified document
-            runValidators: true, // Run schema validators on update
-        });
+        // Sanitize and prepare update data
+        const updateData = {
+            title: body.title?.trim() || 'Untitled',
+            content: body.content?.trim() || '',
+            updatedAt: new Date()
+        };
+
+        // Validate length constraints
+        if (updateData.title.length > 200) {
+            return NextResponse.json(
+                { success: false, error: 'Title must be 200 characters or less' },
+                { status: 400 }
+            );
+        }
+
+        if (updateData.content.length > 10000) {
+            return NextResponse.json(
+                { success: false, error: 'Content must be 10,000 characters or less' },
+                { status: 400 }
+            );
+        }
+
+        const updatedNote = await Note.findByIdAndUpdate(
+            id,
+            updateData,
+            { new: true, runValidators: true }
+        );
 
         if (!updatedNote) {
-            return NextResponseForId.json({ success: false, error: "Note not found" }, { status: 404 });
+            return NextResponse.json(
+                { success: false, error: 'Note not found' },
+                { status: 404 }
+            );
         }
-        return NextResponseForId.json({ success: true, data: updatedNote }, { status: 200 });
-    } catch (error: any) {
-        console.error(`API PUT /api/notes/${id} Error:`, error);
-        return NextResponseForId.json({ success: false, error: 'Server Error' }, { status: 500 });
+
+        // Format the response
+        const formattedNote = {
+            ...updatedNote.toObject(),
+            _id: updatedNote._id.toString(),
+            createdAt: updatedNote.createdAt.toISOString(),
+            updatedAt: updatedNote.updatedAt.toISOString()
+        };
+
+        return NextResponse.json({ success: true, data: formattedNote }, { status: 200 });
+    } catch (error: unknown) {
+        console.error('API PUT Error:', error);
+
+        if (isValidationError(error)) {
+            const validationErrors = Object.values(error.errors).map(err => err.message);
+            return NextResponse.json(
+                { success: false, error: `Validation Error: ${validationErrors.join(', ')}` },
+                { status: 400 }
+            );
+        }
+
+        const errorMessage = error instanceof Error ? error.message : 'Failed to update note';
+        return NextResponse.json(
+            { success: false, error: errorMessage },
+            { status: 500 }
+        );
     }
 }
-export async function DELETE(_request: Request, { params }: RouteParams) {
-    const { id } =await params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return NextResponseForId.json({ success: false, error: "Invalid note ID" }, { status: 400 });
-    }
-
+// DELETE /api/notes/[id] - Delete a specific note
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        await dbConnectForId();
-        const deletedNote = await NoteForId.findByIdAndDelete(id);
-        if (!deletedNote) {
-            return NextResponseForId.json({ success: false, error: "Note not found" }, { status: 404 });
+        await dbConnect();
+
+        const { id } =await params;
+
+        // Validate MongoDB ObjectId format
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid note ID format' },
+                { status: 400 }
+            );
         }
-        return NextResponseForId.json({ success: true, data: {} }, { status: 200 });
-    } catch (error: any) {
-        console.error(`API DELETE /api/notes/${id} Error:`, error);
-        return NextResponseForId.json({ success: false, error: 'Server Error' }, { status: 500 });
+
+        const deletedNote = await Note.findByIdAndDelete(id);
+
+        if (!deletedNote) {
+            return NextResponse.json(
+                { success: false, error: 'Note not found' },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json(
+            { success: true, message: 'Note deleted successfully' },
+            { status: 200 }
+        );
+    } catch (error: unknown) {
+        console.error('API DELETE Error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Failed to delete note';
+        return NextResponse.json(
+            { success: false, error: errorMessage },
+            { status: 500 }
+        );
     }
 }

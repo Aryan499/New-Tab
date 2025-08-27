@@ -85,8 +85,9 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
         setError(null);
         const data = await apiFetch('/api/notes');
         setNotes(data || []);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch notes';
+        setError(errorMessage);
         console.error('Failed to fetch notes:', err);
       } finally {
         setIsLoading(false);
@@ -117,9 +118,10 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
         setNotes([newNoteData, ...notes]);
         setNewNote({ title: '', content: '' });
         setIsCreating(false);
-      } catch (err: any) {
-        console.error("Create note error:", err.message);
-        setError(`Create Error: ${err.message}`);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to create note';
+        console.error("Create note error:", errorMessage);
+        setError(`Create Error: ${errorMessage}`);
       }
     }
   };
@@ -136,9 +138,10 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
       });
       setNotes(notes.map(note => note._id === editingNote._id ? updatedNote : note));
       setEditingNote(null);
-    } catch (err: any) {
-      console.error("Update note error:", err.message);
-      setError(`Update Error: ${err.message}`);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update note';
+      console.error("Update note error:", errorMessage);
+      setError(`Update Error: ${errorMessage}`);
     }
   };
 
@@ -153,9 +156,10 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
         if (editingNote && editingNote._id === id) {
             setEditingNote(null);
         }
-    } catch (err: any) {
-        console.error("Delete note error:", err.message);
-        setError(`Delete Error: ${err.message}`);
+    } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to delete note';
+        console.error("Delete note error:", errorMessage);
+        setError(`Delete Error: ${errorMessage}`);
     } finally {
         setNoteToDelete(null); // Close the confirmation modal
     }
@@ -259,7 +263,7 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-slate-900 min-h-11/12 min-w-11/12 w-full">
+        <DialogContent className="bg-slate-900 max-h-[90vh] max-w-[95vw] w-full">
           <DialogHeader className="sr-only">
             <DialogTitle>Quick Notes Manager</DialogTitle>
             <DialogDescription>Create, edit, search and manage your quick notes</DialogDescription>

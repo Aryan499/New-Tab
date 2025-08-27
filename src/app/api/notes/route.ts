@@ -1,7 +1,27 @@
 import dbConnect from '@/lib/dbconnect';
 import { NextRequest, NextResponse } from 'next/server';
 import Note from '@/models/quicknote';
+import mongoose from 'mongoose';
 
+// Define error types
+interface MongoValidationError extends Error {
+  name: 'ValidationError';
+  errors: Record<string, { message: string }>;
+}
+
+interface MongoDuplicateError extends Error {
+  code: number;
+}
+
+// Type guard for validation errors
+function isValidationError(error: unknown): error is MongoValidationError {
+  return error instanceof Error && error.name === 'ValidationError';
+}
+
+// Type guard for duplicate key errors
+function isDuplicateError(error: unknown): error is MongoDuplicateError {
+  return error instanceof Error && 'code' in error && (error as MongoDuplicateError).code === 11000;
+}
 
 // GET /api/notes - Fetch all notes
 export async function GET() {
@@ -11,9 +31,17 @@ export async function GET() {
         console.log('✅ Database connected');
 
         // Debug: Check if Note model is properly loaded
-        
+        console.log('📝 Note model:', {
+            isModel: Note instanceof mongoose.Model,
+            modelName: Note.modelName,
+            hasFind: typeof Note.find === 'function'
+        });
 
         // Ensure the model is properly registered
+        if (typeof Note.find !== 'function') {
+            throw new Error('Note model is not properly initialized');
+        }
+
         // Fetch all notes and sort them by creation date, newest first
         const notes = await Note.find({}).sort({ createdAt: -1 }).lean();
         console.log(`📊 Found ${notes.length} notes`);
@@ -27,18 +55,21 @@ export async function GET() {
         }));
 
         return NextResponse.json({ success: true, data: formattedNotes }, { status: 200 });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('❌ API GET Error:', error);
         
         // More detailed error logging
-        console.error('Error details:', {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-        });
+        if (error instanceof Error) {
+            console.error('Error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack
+            });
+        }
 
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch notes';
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to fetch notes' },
+            { success: false, error: errorMessage },
             { status: 500 }
         );
     }
@@ -50,11 +81,11 @@ export async function POST(request: NextRequest) {
         console.log('🔄 Starting POST request for new note...');
         await dbConnect();
 
-        let body;
+        let body: { title?: string; content?: string };
         try {
-            body = await request.json();
+            body = await request.json() as { title?: string; content?: string };
             console.log('📥 Received body:', { title: body.title, contentLength: body.content?.length });
-        } catch (parseError) {
+        } catch {
             return NextResponse.json(
                 { success: false, error: 'Invalid JSON in request body' },
                 { status: 400 }
@@ -110,12 +141,12 @@ export async function POST(request: NextRequest) {
         };
 
         return NextResponse.json({ success: true, data: formattedNote }, { status: 201 });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('❌ API POST Error:', error);
 
         // Handle specific MongoDB validation errors
-        if (error.name === 'ValidationError') {
-            const validationErrors = Object.values(error.errors).map((err: any) => err.message);
+        if (isValidationError(error)) {
+            const validationErrors = Object.values(error.errors).map(err => err.message);
             return NextResponse.json(
                 { success: false, error: `Validation Error: ${validationErrors.join(', ')}` },
                 { status: 400 }
@@ -123,15 +154,16 @@ export async function POST(request: NextRequest) {
         }
 
         // Handle MongoDB duplicate key errors
-        if (error.code === 11000) {
+        if (isDuplicateError(error)) {
             return NextResponse.json(
                 { success: false, error: 'A note with this data already exists' },
                 { status: 409 }
             );
         }
 
+        const errorMessage = error instanceof Error ? error.message : 'Failed to create note';
         return NextResponse.json(
-            { success: false, error: error.message || 'Failed to create note' },
+            { success: false, error: errorMessage },
             { status: 500 }
         );
     }
