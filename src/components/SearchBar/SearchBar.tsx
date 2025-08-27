@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef, ReactElement } from "react";
-import Notes from "../QuickNotes/Notes";
+import Notes from "../notes";
 
 // --- Type Definition for a Command ---
 interface Command {
