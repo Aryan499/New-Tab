@@ -13,10 +13,10 @@ import { AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotes } from '@/hooks/useNotes';
 import { NoteType } from '@/lib/types';
-import NoteList from '@/components/notes/NoteList'; 
-import NotesHeader from '@/components/notes/NotesHeader'; 
-import NoteForm from '@/components/notes/NoteForm';       
-import DeleteConfirmation from '@/components/notes/DeleteConfirmation';
+import NoteList from '@/components/QuickNotes/NoteList'; 
+import NotesHeader from '@/components/QuickNotes/NotesHeader'; 
+import NoteForm from '@/components/QuickNotes/NoteForm';       
+import DeleteConfirmation from '@/components/QuickNotes/DeleteConfirmation';
 
 // Enum to manage which UI view is currently active
 enum View {
