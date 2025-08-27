@@ -160,10 +160,3 @@
   letter-spacing: 5px;
   font-weight: 900;
 }
-.ProseMirror {
-  color: white;
-}
-
-.ProseMirror:focus {
-  outline: none;
-}
