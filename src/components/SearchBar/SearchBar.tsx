@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef, ReactElement } from "react";
 import Notes from "../QuickNotes";
+import { Sparkle } from "lucide-react";
+import Chat from "../Chat/Chat";
 
 // --- Type Definition for a Command ---
 interface Command {
@@ -61,7 +63,8 @@ const commands: Command[] = [
   { type: 'search', name: '@search', description: 'Search on YouTube', url: 'https://www.youtube.com/results?search_query=', icon: <SearchIcon />, format: '@search=' },
   { type: 'history', name: '@history', description: 'View YouTube history', url: 'https://www.youtube.com/feed/history', icon: <HistoryIcon />, format: '@history' },
   { type: 'playlists', name: '@playlists', description: 'View YouTube playlists', url: 'https://www.youtube.com/feed/playlists', icon: <PlaylistIcon />, format: '@playlists' },
-  { type: 'quicknote', name: '@quicknote', description: 'Save a quick note (example)', icon: <FileIcon />, format: '@quicknote' },  
+  { type: 'quicknote', name: '@quicknote', description: 'Save a quick note (example)', icon: <FileIcon />, format: '@quicknote' },
+  { type: 'chat', name: '@chat', description: 'Chat with the AI', icon: <Sparkle/>, format: '@chat' },
 ];
 
 const SearchBar = (): ReactElement => {
@@ -71,6 +74,7 @@ const SearchBar = (): ReactElement => {
   const [activeCommandType, setActiveCommandType] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState<boolean>(false);
+  const [chatOpen, setChatOpen] = useState<boolean>(false);
 
   // This effect now ONLY handles the icon state, based on the input value
   useEffect(() => {
@@ -113,7 +117,11 @@ const SearchBar = (): ReactElement => {
         } else if (command.type === 'quicknote') {
           setOpen(true);
           setValue('');
-        } else if (command.url && !query) {
+        } else if (command.type === 'chat') {
+          setChatOpen(true);
+          setValue('');
+        }  
+        else if (command.url && !query) {
           window.location.href = command.url;
         }
         return;
@@ -196,6 +204,7 @@ const SearchBar = (): ReactElement => {
         </div>
       )}
       <Notes open={open} setOpen={setOpen} />
+      <Chat open={chatOpen} setOpen={setChatOpen} />
     </div>
   );
 };
