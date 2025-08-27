@@ -74,8 +74,8 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // State for the delete confirmation modal
-  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  // State for the delete confirmation
+  const [noteToDelete, setNoteToDelete] = useState<NoteType | null>(null);
 
   // Fetch notes from the API on component mount or when the dialog opens
   useEffect(() => {
@@ -153,15 +153,11 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
             method: 'DELETE',
         });
         setNotes(notes.filter(note => note._id !== id));
-        if (editingNote && editingNote._id === id) {
-            setEditingNote(null);
-        }
+        setNoteToDelete(null);
     } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to delete note';
         console.error("Delete note error:", errorMessage);
         setError(`Delete Error: ${errorMessage}`);
-    } finally {
-        setNoteToDelete(null); // Close the confirmation modal
     }
   };
 
@@ -174,6 +170,7 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
   const cancelEdit = () => {
     setEditingNote(null);
     setIsCreating(false);
+    setNoteToDelete(null);
     setNewNote({ title: '', content: '' });
   };
 
@@ -181,13 +178,8 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        if (editingNote) {
-          setEditingNote(null);
-        } else if (noteToDelete) {
-          setNoteToDelete(null);
-        } else if (isCreating) {
-          setIsCreating(false);
-          setNewNote({ title: '', content: '' });
+        if (editingNote || noteToDelete || isCreating) {
+          cancelEdit();
         }
       }
     };
@@ -233,7 +225,7 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
                     <Button 
                       size="sm" 
                       variant="ghost" 
-                      onClick={() => setNoteToDelete(note._id)} 
+                      onClick={() => setNoteToDelete(note)} 
                       className="p-1 h-6 w-6 hover:bg-red-600"
                       title="Delete note"
                     >
@@ -261,152 +253,172 @@ const Notes = ({open, setOpen}: {open: boolean, setOpen: (open: boolean) => void
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-slate-900 max-h-[90vh] max-w-[95vw] w-full">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Quick Notes Manager</DialogTitle>
-            <DialogDescription>Create, edit, search and manage your quick notes</DialogDescription>
-          </DialogHeader>
-          {isCreating ? (
-            <div className="h-full flex flex-col">
-              <h2 className="text-2xl font-bold text-white mb-6">Create New Note</h2>
-              <div className="flex-1 flex flex-col gap-4">
-                <Input 
-                  type="text" 
-                  placeholder="Enter note title..." 
-                  value={newNote.title} 
-                  onChange={(e) => setNewNote({...newNote, title: e.target.value})} 
-                  className="text-xl font-semibold bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500" 
-                  autoFocus 
-                />
-                <Textarea 
-                  placeholder="Write your note here..." 
-                  value={newNote.content} 
-                  onChange={(e) => setNewNote({...newNote, content: e.target.value})} 
-                  className="flex-1 bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 resize-none min-h-[400px]" 
-                />
-                <div className="flex gap-3 justify-end">
-                  <Button onClick={cancelEdit} variant="outline" className="border-slate-600">
-                    <X className="h-4 w-4 mr-2" />
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreateNote} disabled={!newNote.title.trim() && !newNote.content.trim()}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Note
-                  </Button>
-                </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="bg-slate-900 min-h-5/6 min-w-11/12">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Quick Notes Manager</DialogTitle>
+          <DialogDescription>Create, edit, search and manage your quick notes</DialogDescription>
+        </DialogHeader>
+        
+        {/* Create Note View */}
+        {isCreating && (
+          <div className="h-full flex flex-col">
+            <h2 className="text-2xl font-bold text-white mb-6">Create New Note</h2>
+            <div className="flex-1 flex flex-col gap-4">
+              <Input 
+                type="text" 
+                placeholder="Enter note title..." 
+                value={newNote.title} 
+                onChange={(e) => setNewNote({...newNote, title: e.target.value})} 
+                className="text-xl font-semibold bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500" 
+                autoFocus 
+              />
+              <Textarea 
+                placeholder="Write your note here..." 
+                value={newNote.content} 
+                onChange={(e) => setNewNote({...newNote, content: e.target.value})} 
+                className="flex-1 bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 resize-none min-h-[400px]" 
+              />
+              <div className="flex gap-3 justify-end">
+                <Button onClick={cancelEdit} variant="outline" className="border-slate-600">
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateNote} disabled={!newNote.title.trim() && !newNote.content.trim()}>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Note
+                </Button>
               </div>
             </div>
-          ) : (
-            <Card className="h-full bg-inherit border-0 flex flex-col">
-              <CardHeader className="flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-white">Quick Notes</CardTitle>
-                    <CardDescription>Manage all your quick notes</CardDescription>
+          </div>
+        )}
+
+        {/* Edit Note View */}
+        {editingNote && (
+          <div className="h-full flex flex-col">
+            <h2 className="text-2xl font-bold text-white mb-6">Edit Note</h2>
+            <div className="flex-1 flex flex-col gap-4">
+              <Input 
+                type="text" 
+                value={editingNote.title} 
+                onChange={(e) => setEditingNote({...editingNote, title: e.target.value})} 
+                className="text-xl font-semibold bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500" 
+                placeholder="Enter note title..." 
+                autoFocus
+              />
+              <Textarea 
+                value={editingNote.content} 
+                onChange={(e) => setEditingNote({...editingNote, content: e.target.value})} 
+                className="flex-1 bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 resize-none min-h-[400px]" 
+                placeholder="Write your note here..." 
+              />
+              <div className="flex gap-3 justify-end">
+                <Button onClick={cancelEdit} variant="outline" className="border-slate-600">
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleUpdateNote} 
+                  className="bg-green-600 hover:bg-green-700"
+                  disabled={!editingNote.title.trim() && !editingNote.content.trim()}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  Update Note
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation View */}
+        {noteToDelete && (
+          <div className="h-full flex flex-col items-center justify-center">
+            <div className="text-center max-w-md">
+              <div className="mb-6">
+                <Trash2 className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold text-white mb-2">Delete Note</h2>
+                <p className="text-gray-300 mb-4">
+                  Are you sure you want to delete this note? This action cannot be undone.
+                </p>
+              </div>
+              
+              <div className="bg-slate-800 border border-slate-600 rounded-lg p-4 mb-6 text-left">
+                <h3 className="font-semibold text-white mb-2" title={noteToDelete.title}>
+                  {noteToDelete.title || 'Untitled'}
+                </h3>
+                <p className="text-gray-300 text-sm line-clamp-3" title={noteToDelete.content}>
+                  {noteToDelete.content || 'No content'}
+                </p>
+                <div className="mt-2 pt-2 border-t border-slate-700">
+                  <div className="text-xs text-gray-500 flex items-center gap-1">
+                    <CalendarDays className="h-3 w-3" />
+                    <span>Created: {formatDate(noteToDelete.createdAt)}</span>
                   </div>
-                  <Button onClick={() => setIsCreating(true)} disabled={!!editingNote}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Note
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-center">
+                <Button onClick={cancelEdit} variant="outline" className="border-slate-600">
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => handleDeleteNote(noteToDelete._id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Note
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Notes List View */}
+        {!isCreating && !editingNote && !noteToDelete && (
+          <Card className="h-full bg-inherit border-0 flex flex-col">
+            <CardHeader className="flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-white">Quick Notes</CardTitle>
+                  <CardDescription>Manage all your quick notes</CardDescription>
+                </div>
+                <Button onClick={() => setIsCreating(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Note
+                </Button>
+              </div>
+              <div className="relative mt-4">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input 
+                  type="text" 
+                  placeholder="Search notes..." 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  className="pl-10 bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500" 
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden flex flex-col">
+               {error && (
+                <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-md mb-4 flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                  <span className="flex-1">{error}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto p-1 h-auto">
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="relative mt-4">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input 
-                    type="text" 
-                    placeholder="Search notes..." 
-                    value={searchTerm} 
-                    onChange={(e) => setSearchTerm(e.target.value)} 
-                    className="pl-10 bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500" 
-                  />
-                </div>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-hidden flex flex-col">
-                 {error && (
-                  <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-md mb-4 flex items-center gap-3">
-                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    <span className="flex-1">{error}</span>
-                    <Button variant="ghost" size="sm" onClick={() => setError(null)} className="ml-auto p-1 h-auto">
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-                <div className="flex-1 overflow-y-auto">{renderContent()}</div>
-              </CardContent>
-              <CardFooter className="flex-shrink-0 justify-between text-sm text-gray-400">
-                <span>Total notes: {notes.length}</span>
-                {searchTerm && <span>Showing: {filteredNotes.length}</span>}
-              </CardFooter>
-            </Card>
-          )}
-        </DialogContent>
-      </Dialog>
-        
-      {/* Edit Mode Modal */}
-      {editingNote && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <Card className="bg-slate-800 border-slate-600 w-full max-w-md max-h-[80vh] overflow-y-auto">
-                  <CardHeader>
-                    <CardTitle className="text-white">Edit Note</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                      <Input 
-                        type="text" 
-                        value={editingNote.title} 
-                        onChange={(e) => setEditingNote({...editingNote, title: e.target.value})} 
-                        className="bg-slate-700 border-slate-500 text-white focus:ring-2 focus:ring-blue-500" 
-                        placeholder="Note title..." 
-                        autoFocus
-                      />
-                      <Textarea 
-                        value={editingNote.content} 
-                        onChange={(e) => setEditingNote({...editingNote, content: e.target.value})} 
-                        rows={10} 
-                        className="bg-slate-700 border-slate-500 text-white focus:ring-2 focus:ring-blue-500 resize-none" 
-                        placeholder="Note content..." 
-                      />
-                  </CardContent>
-                  <CardFooter className="flex justify-end gap-2">
-                      <Button onClick={cancelEdit} variant="outline" size="sm">
-                        <X className="h-4 w-4 mr-2" />
-                        Cancel
-                      </Button>
-                      <Button 
-                        onClick={handleUpdateNote} 
-                        size="sm" 
-                        className="bg-green-600 hover:bg-green-700"
-                        disabled={!editingNote.title.trim() && !editingNote.content.trim()}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                      </Button>
-                  </CardFooter>
-              </Card>
-          </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {noteToDelete && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <Card className="bg-slate-800 border-slate-600 w-full max-w-sm">
-                  <CardHeader>
-                      <CardTitle className="text-white">Confirm Deletion</CardTitle>
-                      <CardDescription>Are you sure you want to delete this note? This action cannot be undone.</CardDescription>
-                  </CardHeader>
-                  <CardFooter className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setNoteToDelete(null)}>
-                        Cancel
-                      </Button>
-                      <Button variant="destructive" onClick={() => handleDeleteNote(noteToDelete)}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
-                      </Button>
-                  </CardFooter>
-              </Card>
-          </div>
-      )}
-    </>
+              )}
+              <div className="flex-1 overflow-y-auto">{renderContent()}</div>
+            </CardContent>
+            <CardFooter className="flex-shrink-0 justify-between text-sm text-gray-400">
+              <span>Total notes: {notes.length}</span>
+              {searchTerm && <span>Showing: {filteredNotes.length}</span>}
+            </CardFooter>
+          </Card>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
 
