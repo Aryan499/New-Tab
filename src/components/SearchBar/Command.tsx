@@ -57,5 +57,5 @@ export const commands: Command[] = [
   { type: 'history', name: '@history', description: 'View YouTube history', url: 'https://www.youtube.com/feed/history', icon: <HistoryIcon />, format: '@history' },
   { type: 'playlists', name: '@playlists', description: 'View YouTube playlists', url: 'https://www.youtube.com/feed/playlists', icon: <PlaylistIcon />, format: '@playlists' },
   { type: 'quicknote', name: '@quicknote', description: 'Open the quick notes manager', icon: <FileIcon />, format: '@quicknote' },
-  { type: 'chat', name: '@chat', description: 'Chat with the AI assistant', icon: <Sparkle/>, format: '@chat' },
+  { type: 'chat', name: '@chat', description: 'Chat with the AI assistant', icon: <Sparkle/>, url: "https://gemini.google.com", format: '@chat' },
 ];

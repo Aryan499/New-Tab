@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useMemo, useRef, ReactElement, useEffect } from "react";
 import Notes from "../QuickNotes";
-import Chat from "../Chat/Chat";
 import { Command, Suggestion } from "@/types/Search.types";
 import { commands, GoogleLogo } from "./Command";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
@@ -201,7 +200,7 @@ const SearchBar = (): ReactElement => {
             )}
             
             <Notes open={notesOpen} setOpen={setNotesOpen} />
-            <Chat open={chatOpen} setOpen={setChatOpen} />
+            {/* <Chat open={chatOpen} setOpen={setChatOpen} /> */}
         </div>
     );
 };
