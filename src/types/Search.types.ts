@@ -8,3 +8,6 @@ export interface Command {
   icon: ReactElement;
   format: string;
 }
+export type Suggestion =
+  | { type: 'command'; data: Command }
+  | { type: 'history'; data: string };
