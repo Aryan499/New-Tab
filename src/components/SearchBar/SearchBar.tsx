@@ -28,56 +28,54 @@ const SearchBar = (): ReactElement => {
     const [value, setValue] = useState<string>("");
     const [isFocused, setIsFocused] = useState<boolean>(false);
     const [notesOpen, setNotesOpen] = useState<boolean>(false);
-  
     const inputRef = useRef<HTMLInputElement>(null);
     const [recentSearches, setRecentSearches] = useState<string[]>([]);
     
-    // Load search history from localStorage when the component mounts
     useEffect(() => {
         setRecentSearches(getRecentSearches());
     }, []);
 
-    // Main input change handler with autocomplete logic
     const handleInputChange = (newValue: string) => {
         setValue(newValue);
-        if (newValue && !activeCommand && !newValue.startsWith('@')) {
-            const match = recentSearches.find(item => item.toLowerCase().startsWith(newValue.toLowerCase()));
-            setAutoCompleteSuggestion(match || '');
+        setAutoCompleteSuggestion(''); // Reset suggestion on every change
+
+        if (!newValue || activeCommand) return;
+
+        const lowerCaseValue = newValue.toLowerCase();
+
+        if (lowerCaseValue.startsWith('@')) {
+            const match = commands.find(cmd => cmd.name.toLowerCase().startsWith(lowerCaseValue));
+            if (match && match.name.toLowerCase() !== lowerCaseValue) {
+                setAutoCompleteSuggestion(match.name);
+            }
         } else {
-            setAutoCompleteSuggestion('');
+            const match = recentSearches.find(item => item.toLowerCase().startsWith(lowerCaseValue));
+            if (match && match.toLowerCase() !== lowerCaseValue) {
+                setAutoCompleteSuggestion(match);
+            }
         }
     };
     
-    // Memoized calculation for the suggestions dropdown
     const suggestions: Suggestion[] = useMemo(() => {
         if (!isFocused || activeCommand) return [];
-        
         const lowerCaseValue = value.toLowerCase();
 
-        // Handle command suggestions when typing with "@"
         if (value.startsWith('@')) {
             const searchTerm = value.substring(1);
             const filteredCommands = commands.filter(c => c.type.startsWith(searchTerm));
             return filteredCommands.map(cmd => ({ type: 'command', data: cmd }));
         }
 
-        // --- MODIFICATION ---
-        // Only filter and show history if there is a value in the input
         const filteredHistory = value.trim() !== '' 
             ? recentSearches
                 .filter(item => item.toLowerCase().includes(lowerCaseValue) && item.toLowerCase() !== lowerCaseValue)
                 .map(item => ({ type: 'history', data: item } as Suggestion))
             : [];
         
-        // Show all commands only when the input is completely empty
-        const initialCommands = value === "" 
-            ? commands.map(cmd => ({ type: 'command', data: cmd } as Suggestion)) 
-            : [];
-        
+        const initialCommands = value === "" ? commands.map(cmd => ({ type: 'command', data: cmd } as Suggestion)) : [];
         return [...initialCommands, ...filteredHistory];
     }, [value, isFocused, activeCommand, recentSearches]);
 
-    // Central function for performing a search
     const performSearch = (query: string) => {
         const trimmedValue = query.trim();
         if (!trimmedValue) return;
@@ -92,7 +90,6 @@ const SearchBar = (): ReactElement => {
         }
     };
 
-    // Handler for selecting an item from the suggestions dropdown
     const handleSuggestionSelect = (suggestion: Suggestion) => {
         if (suggestion.type === 'command') {
             const command = suggestion.data;
@@ -102,7 +99,6 @@ const SearchBar = (): ReactElement => {
                 inputRef.current?.focus();
             } else {
                 if (command.type === 'quicknote') setNotesOpen(true);
-               
                 if (command.url) window.location.href = command.url;
                 setValue('');
             }
@@ -117,7 +113,6 @@ const SearchBar = (): ReactElement => {
         (index) => handleSuggestionSelect(suggestions[index])
     );
 
-    // Main keydown handler for the input
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if ((e.key === 'Tab' || e.key === 'ArrowRight') && autoCompleteSuggestion) {
             if (inputRef.current && inputRef.current.selectionStart === value.length) {
@@ -137,6 +132,14 @@ const SearchBar = (): ReactElement => {
 
         if (e.key === 'Enter' && selectedIndex === -1) {
             const trimmedValue = value.trim();
+            if (!trimmedValue) return;
+
+            const commandMatch = commands.find(cmd => cmd.name === trimmedValue);
+            if (commandMatch) {
+                handleSuggestionSelect({ type: 'command', data: commandMatch });
+                return;
+            }
+
             if (activeCommand && activeCommand.url) {
                 const newHistory = addRecentSearch(`${activeCommand.name}=${trimmedValue}`);
                 setRecentSearches(newHistory);
@@ -200,7 +203,6 @@ const SearchBar = (): ReactElement => {
             )}
             
             <Notes open={notesOpen} setOpen={setNotesOpen} />
-            {/* <Chat open={chatOpen} setOpen={setChatOpen} /> */}
         </div>
     );
 };
