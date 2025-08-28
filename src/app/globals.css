@@ -160,3 +160,8 @@
   letter-spacing: 5px;
   font-weight: 900;
 }
+.roboto {
+  font-family: var(--font-roboto);
+  letter-spacing: 5px;
+  font-weight: 900;
+}

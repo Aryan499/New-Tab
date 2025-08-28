@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import {Anton,Playfair_Display} from "next/font/google";
+import {Anton,Roboto} from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import {
@@ -12,11 +12,11 @@ const antonFont=Anton({
   subsets: ["latin"],
   weight: "400",
 })
-const playfairFont=Playfair_Display({
-  variable: "--font-playfair",
+const robotoFont=Roboto({
+  variable: "--font-roboto",
   subsets: ["latin"],
-  weight: "900",
-})
+  weight: "400",
+});
 
 
 export const metadata: Metadata = {
@@ -35,7 +35,7 @@ export default function RootLayout({
 
     <html lang="en">
       <body
-        className={` antialiased dark ${antonFont.variable} ${playfairFont.variable} font-inter bg-background text-foreground`}
+        className={` antialiased dark ${antonFont.variable} ${robotoFont.variable} font-inter bg-background text-foreground`}
       >
         {children}
         <Toaster/>

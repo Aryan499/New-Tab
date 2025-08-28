@@ -26,16 +26,16 @@ function isDuplicateError(error: unknown): error is MongoDuplicateError {
 // GET /api/notes - Fetch all notes
 export async function GET() {
     try {
-        console.log('🔄 Starting GET request for notes...');
+        // console.log('🔄 Starting GET request for notes...');
         await dbConnect();
         console.log('✅ Database connected');
 
         // Debug: Check if Note model is properly loaded
-        console.log('📝 Note model:', {
-            isModel: Note instanceof mongoose.Model,
-            modelName: Note.modelName,
-            hasFind: typeof Note.find === 'function'
-        });
+        // console.log('📝 Note model:', {
+        //     isModel: Note instanceof mongoose.Model,
+        //     modelName: Note.modelName,
+        //     hasFind: typeof Note.find === 'function'
+        // });
 
         // Ensure the model is properly registered
         if (typeof Note.find !== 'function') {
@@ -44,7 +44,7 @@ export async function GET() {
 
         // Fetch all notes and sort them by creation date, newest first
         const notes = await Note.find({}).sort({ createdAt: -1 }).lean();
-        console.log(`📊 Found ${notes.length} notes`);
+        // console.log(`📊 Found ${notes.length} notes`);
 
         // Convert MongoDB _id to string and ensure proper date formatting
         const formattedNotes = notes.map(note => ({
@@ -78,13 +78,13 @@ export async function GET() {
 // POST /api/notes - Create a new note
 export async function POST(request: NextRequest) {
     try {
-        console.log('🔄 Starting POST request for new note...');
+        // console.log('🔄 Starting POST request for new note...');
         await dbConnect();
 
         let body: { title?: string; content?: string };
         try {
             body = await request.json() as { title?: string; content?: string };
-            console.log('📥 Received body:', { title: body.title, contentLength: body.content?.length });
+            // console.log('📥 Received body:', { title: body.title, contentLength: body.content?.length });
         } catch {
             return NextResponse.json(
                 { success: false, error: 'Invalid JSON in request body' },
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log('💾 Creating note with data:', noteData);
+        // console.log('💾 Creating note with data:', noteData);
         
         // Debug: Check if Note model is properly loaded
         if (typeof Note.create !== 'function') {
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         }
 
         const newNote = await Note.create(noteData);
-        console.log('✅ Note created successfully:', newNote._id);
+        // console.log('✅ Note created successfully:', newNote._id);
 
         // Format the response to match frontend expectations
         const formattedNote = {
