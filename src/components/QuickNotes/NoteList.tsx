@@ -17,13 +17,13 @@ const NoteList = ({ notes, isLoading, searchTerm, onEdit, onDelete }: NoteListPr
       </div>
     );
   }
- console.log("Notes:", notes)
+//  console.log("Notes:", notes)
   const filteredNotes = notes.filter(note =>
     note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     note.content.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  console.log("Filtered Notes:", filteredNotes)
+  // console.log("Filtered Notes:", filteredNotes)
   if (filteredNotes.length === 0) {
     return (
       <div className="text-center py-12 text-gray-400">
