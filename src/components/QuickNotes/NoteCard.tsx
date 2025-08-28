@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Edit, RefreshCw, Trash2 } from "lucide-react";
-import { NoteType } from "@/lib/types";
+import { NoteType } from "@/types/NoteType.types";
 import { formatDate } from "@/lib/utils";
 
 type NoteCardProps = {

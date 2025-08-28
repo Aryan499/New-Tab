@@ -7,7 +7,6 @@ import { commands, GoogleLogo } from "./Command";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { SuggestionList } from "./SuggestionList";
 import { getRecentSearches, addRecentSearch } from "@/lib/searchHistory";
-import { History } from "lucide-react";
 
 // Helper functions for URL validation and formatting
 const isValidUrl = (string: string): boolean => {
@@ -53,19 +52,29 @@ const SearchBar = (): ReactElement => {
     // Memoized calculation for the suggestions dropdown
     const suggestions: Suggestion[] = useMemo(() => {
         if (!isFocused || activeCommand) return [];
+        
         const lowerCaseValue = value.toLowerCase();
 
+        // Handle command suggestions when typing with "@"
         if (value.startsWith('@')) {
             const searchTerm = value.substring(1);
             const filteredCommands = commands.filter(c => c.type.startsWith(searchTerm));
             return filteredCommands.map(cmd => ({ type: 'command', data: cmd }));
         }
 
-        const filteredHistory = recentSearches
-            .filter(item => item.toLowerCase().includes(lowerCaseValue) && item.toLowerCase() !== lowerCaseValue)
-            .map(item => ({ type: 'history', data: item } as Suggestion));
+        // --- MODIFICATION ---
+        // Only filter and show history if there is a value in the input
+        const filteredHistory = value.trim() !== '' 
+            ? recentSearches
+                .filter(item => item.toLowerCase().includes(lowerCaseValue) && item.toLowerCase() !== lowerCaseValue)
+                .map(item => ({ type: 'history', data: item } as Suggestion))
+            : [];
         
-        const initialCommands = value === "" ? commands.map(cmd => ({ type: 'command', data: cmd } as Suggestion)) : [];
+        // Show all commands only when the input is completely empty
+        const initialCommands = value === "" 
+            ? commands.map(cmd => ({ type: 'command', data: cmd } as Suggestion)) 
+            : [];
+        
         return [...initialCommands, ...filteredHistory];
     }, [value, isFocused, activeCommand, recentSearches]);
 
