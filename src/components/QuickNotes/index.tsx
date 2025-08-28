@@ -12,7 +12,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNotes } from '@/hooks/useNotes';
-import { NoteType } from '@/lib/types';
+import { NoteType } from '@/types/NoteType.types';
 import NoteList from '@/components/QuickNotes/NoteList'; 
 import NotesHeader from '@/components/QuickNotes/NotesHeader'; 
 import NoteForm from '@/components/QuickNotes/NoteForm';       
@@ -46,7 +46,7 @@ const Notes = ({ open, setOpen }: { open: boolean, setOpen: (open: boolean) => v
   const handleSaveNote = async (noteData: { title: string; content: string }) => {
     try {
       if (currentView === View.Edit && activeNote) {
-        await updateNote(activeNote._id, noteData);
+        await updateNote(activeNote.noteId, noteData);
       } else {
         await createNote(noteData);
       }
@@ -60,7 +60,7 @@ const Notes = ({ open, setOpen }: { open: boolean, setOpen: (open: boolean) => v
   const handleDeleteConfirm = async () => {
     if (activeNote) {
       try {
-        await deleteNote(activeNote._id);
+        await deleteNote(activeNote.noteId);
         resetView();
       } catch (err: unknown) {
         setError(err instanceof Error ? `Delete failed: ${err.message}` : 'An unknown error occurred');

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
-import { NoteType } from '@/lib/types';
+import { NoteType } from '@/types/NoteType.types';
 
 export const useNotes = (isOpen: boolean) => {
   const [notes, setNotes] = useState<NoteType[]>([]);
@@ -42,12 +42,12 @@ export const useNotes = (isOpen: boolean) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedData),
     });
-    setNotes(prevNotes => prevNotes.map(note => (note._id === id ? updatedNote : note)));
+    setNotes(prevNotes => prevNotes.map(note => (note.noteId === id ? updatedNote : note)));
   };
 
   const deleteNote = async (id: string) => {
     await apiFetch(`/api/notes/${id}`, { method: 'DELETE' });
-    setNotes(prevNotes => prevNotes.filter(note => note._id !== id));
+    setNotes(prevNotes => prevNotes.filter(note => note.noteId !== id));
   };
 
   return { notes, isLoading, error, setError, createNote, updateNote, deleteNote };

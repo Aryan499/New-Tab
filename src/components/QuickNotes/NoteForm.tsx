@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 // import { Textarea } from "@/components/ui/textarea";
 import { X, Save } from "lucide-react";
-import { NoteType } from "@/lib/types";
+import { NoteType } from "@/types/NoteType.types";
 
 type NoteFormProps = {
   noteToEdit?: NoteType | null;

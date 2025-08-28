@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Trash2, X, CalendarDays } from "lucide-react";
-import { NoteType } from "@/lib/types";
+import { NoteType } from "@/types/NoteType.types";
 import { formatDate } from "@/lib/utils";
 
 type DeleteConfirmationProps = {

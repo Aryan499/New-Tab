@@ -28,7 +28,7 @@ const SearchBar = (): ReactElement => {
     const [value, setValue] = useState<string>("");
     const [isFocused, setIsFocused] = useState<boolean>(false);
     const [notesOpen, setNotesOpen] = useState<boolean>(false);
-    const [chatOpen, setChatOpen] = useState<boolean>(false);
+  
     const inputRef = useRef<HTMLInputElement>(null);
     const [recentSearches, setRecentSearches] = useState<string[]>([]);
     
@@ -102,7 +102,7 @@ const SearchBar = (): ReactElement => {
                 inputRef.current?.focus();
             } else {
                 if (command.type === 'quicknote') setNotesOpen(true);
-                if (command.type === 'chat') setChatOpen(true);
+               
                 if (command.url) window.location.href = command.url;
                 setValue('');
             }
