@@ -1,12 +1,12 @@
 // Interfaces for better type safety
-export type CalendarEvent= {
+export type CalendarEvent = {
   id: string;
   title: string;
   date: Date;
   time: string;
   duration: string;
   location?: string;
-  attendees?: number;
+  attendees?: string[];
   priority: 'high' | 'medium' | 'low';
   description?: string;
   indicator: string;
@@ -16,7 +16,7 @@ export type CalendarEvent= {
   meetLink?: string;
 }
 
-export type EventRequestBody= {
+export type EventRequestBody = {
   summary: string;
   description?: string;
   start: {
@@ -26,4 +26,5 @@ export type EventRequestBody= {
     dateTime: string;
   };
   createMeetLink?: boolean;
+  attendees?: string[];  // Array of email addresses
 }

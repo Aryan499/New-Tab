@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -26,11 +27,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { CalendarIcon } from "lucide-react";
@@ -41,54 +38,114 @@ import { Event } from "@/types/DailyPlanner.types";
 
 // Event Form Component
 interface EventFormProps {
-  event?: Event; 
+  event?: Event;
   onSave: () => void;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export const EventForm: React.FC<EventFormProps> = ({ 
-  event, 
-  onSave, 
-  isOpen, 
-  onOpenChange 
+export const EventForm: React.FC<EventFormProps> = ({
+  event,
+  onSave,
+  isOpen,
+  onOpenChange
 }) => {
+  interface Attendee {
+    email: string;
+    frequency: number;
+    name?: string;
+    responseStatus?: string;
+    photoUrl?: string;
+  }
+
+  const [emailSuggestions, setEmailSuggestions] = useState<Attendee[]>([]);
+
+  // Load recent attendees from API and local storage
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      try {
+        // Fetch from API
+        const response = await axios.get('/api/calendar/attendees');
+        const apiAttendees = response.data.attendees;
+
+        // Get from localStorage
+        const savedEmails = localStorage.getItem('emailSuggestions');
+        const localAttendees = savedEmails ? JSON.parse(savedEmails).map((email: string) => ({
+          email,
+          frequency: 0
+        })) : [];
+
+        // Combine and deduplicate while preserving frequency
+        const allAttendees = new Map();
+        [...apiAttendees, ...localAttendees].forEach(attendee => {
+          if (!allAttendees.has(attendee.email)) {
+            allAttendees.set(attendee.email, attendee);
+          }
+        });
+
+        setEmailSuggestions(Array.from(allAttendees.values()));
+      } catch (error) {
+        console.error('Error loading attendee suggestions:', error);
+        // Fallback to localStorage only
+        const savedEmails = localStorage.getItem('emailSuggestions');
+        if (savedEmails) {
+          setEmailSuggestions(JSON.parse(savedEmails).map((email: string) => ({
+            email,
+            frequency: 0
+          })));
+        }
+      }
+    };
+
+    loadSuggestions();
+  }, []);
+
+  // Controlled input for attendee entry — using a separate state makes adding reliable
+  const [attendeeInput, setAttendeeInput] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     title: event?.title || '',
-    date: event?.date || new Date(),
+    date: event?.date ? new Date(event.date) : new Date(),
     hour: event?.hour || '09',
     minute: event?.minute || '00',
     ampm: event?.ampm || 'AM' as 'AM' | 'PM',
     duration: event?.duration || '1 hour',
     priority: event?.priority || 'medium' as 'high' | 'medium' | 'low',
     description: event?.description || '',
-    scheduleMeeting: event?.scheduleMeeting || false
+    scheduleMeeting: event?.scheduleMeeting || false,
+    attendees: Array.isArray(event?.attendees) ? event.attendees.join('\n') : ''
   });
 
   // Re-sync form data when the event prop changes (e.g., when editing a different event)
   useEffect(() => {
     setFormData({
       title: event?.title || '',
-      date: event?.date || new Date(),
+      date: event?.date ? new Date(event.date) : new Date(),
       hour: event?.hour || '09',
       minute: event?.minute || '00',
       ampm: event?.ampm || 'AM',
       duration: event?.duration || '1 hour',
       priority: event?.priority || 'medium',
       description: event?.description || '',
-      scheduleMeeting: event?.scheduleMeeting || false
+      scheduleMeeting: event?.scheduleMeeting || false,
+      attendees: Array.isArray(event?.attendees) ? event.attendees.join('\n') : ''
     });
   }, [event]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     const toastId = toast.loading(event ? "Updating event..." : "Creating event...");
-    
+
     try {
+      // Create date in local time zone
       const startDateTime = new Date(formData.date);
       const hour24 = formData.ampm === 'PM' ? (parseInt(formData.hour) % 12) + 12 : parseInt(formData.hour) % 12;
       startDateTime.setHours(hour24, parseInt(formData.minute), 0, 0);
+      console.log('Creating event at:', startDateTime.toISOString());
 
       const endDateTime = new Date(startDateTime);
       const durationMap = {
@@ -102,16 +159,23 @@ export const EventForm: React.FC<EventFormProps> = ({
         endDateTime.setMinutes(startDateTime.getMinutes() + 60);
       }
 
+      const attendeeEmails = formData.attendees
+        .split('\n')
+        .map(email => email.trim())
+        .filter(email => email !== '');
+
       const requestBody = {
         summary: formData.title,
         description: formData.description,
         start: { dateTime: startDateTime.toISOString() },
         end: { dateTime: endDateTime.toISOString() },
         createMeetLink: formData.scheduleMeeting,
+        attendees: attendeeEmails
       };
 
       if (event?.id) {
         await axios.put(`/api/calendar/today?eventId=${event.id}`, requestBody);
+
         toast.success("Event updated successfully!", { id: toastId });
       } else {
         await axios.post('/api/calendar/today', requestBody);
@@ -119,23 +183,57 @@ export const EventForm: React.FC<EventFormProps> = ({
       }
 
       // Call the onSave callback to trigger a refresh of the parent component
-      onSave();
+      await onSave(); // Wait for the events to be refreshed
       onOpenChange(false);
-      
+
     } catch (error) {
       console.error('API call failed:', error);
       toast.error("An error occurred. Please try again.", { id: toastId });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleInputChange = <K extends keyof typeof formData>(
-    field: K, 
+    field: K,
     value: typeof formData[K]
   ) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const hours = Array.from({ length: 12 }, (_, i) => 
+  // Add attendee helper: validates, updates form state, suggestions and localStorage
+  const addAttendee = (raw: string) => {
+    const email = (raw || '').trim();
+    if (!email || !email.includes('@')) return;
+
+    const currentAttendees = formData.attendees ? formData.attendees.split('\n').filter(Boolean) : [];
+    if (!currentAttendees.includes(email)) {
+      handleInputChange('attendees', [...currentAttendees, email].join('\n'));
+    }
+
+    setEmailSuggestions(prev => {
+      const existing = prev.find(s => s.email === email);
+      let next: Attendee[];
+      if (existing) {
+        next = prev.map(s => s.email === email ? { ...s, frequency: s.frequency + 1 } : s);
+      } else {
+        const newAtt: Attendee = { email, frequency: 1, name: email.split('@')[0] };
+        next = [...prev, newAtt];
+      }
+
+      try {
+        localStorage.setItem('emailSuggestions', JSON.stringify(next.map(s => s.email)));
+      } catch (e) {
+        console.warn('Failed to persist email suggestions', e);
+      }
+
+      return next;
+    });
+
+    setAttendeeInput('');
+  };
+
+  const hours = Array.from({ length: 12 }, (_, i) =>
     (i + 1).toString().padStart(2, '0')
   );
 
@@ -159,8 +257,15 @@ export const EventForm: React.FC<EventFormProps> = ({
   ];
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent >
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!isSubmitting) {
+          onOpenChange(open);
+        }
+      }}
+    >
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-white">
             {event ? 'Edit Event' : 'Add New Event'}
@@ -169,7 +274,7 @@ export const EventForm: React.FC<EventFormProps> = ({
             {event ? 'Update your event details' : 'Create a new calendar event'}
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title" className="text-gray-300">Event Title</Label>
@@ -231,29 +336,24 @@ export const EventForm: React.FC<EventFormProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="flex items-center justify-center h-9 text-gray-400">
                   :
                 </div>
-                
+
                 <div className="flex space-y-1 flex-col">
                   <Label className="text-xs text-gray-400">Minutes</Label>
-                  <InputOTP
-                    maxLength={2}
+                  <Input
+                    type="string"
+
                     value={formData.minute}
-                    onChange={(value) => {
-                      const paddedValue = value.length === 1 ? value.padEnd(2, '0') : value;
-                      handleInputChange('minute', paddedValue);
+                    onChange={(e) => {
+                      handleInputChange('minute', e.target.value);
                     }}
-                    pattern="^[0-5][0-9]$"
-                  >
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                    </InputOTPGroup>
-                  </InputOTP>
+                    className="bg-gray-800 border-gray-700 text-white w-[70px] h-9"
+                  />
                 </div>
-                
+
                 <div className="flex flex-col mt-1">
                   <Label htmlFor="ampm" className="text-xs text-gray-400">AM/PM</Label>
                   <Select value={formData.ampm} onValueChange={(value: 'AM' | 'PM') => handleInputChange('ampm', value)}>
@@ -286,18 +386,18 @@ export const EventForm: React.FC<EventFormProps> = ({
 
           <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
             <div className="flex items-center space-x-3">
-              <Image 
-              src="/meet.png"
-              alt="Meet Icon" 
-              width={24}
-              height={24}
-              className="h-6 w-8"
+              <Image
+                src="/meet.png"
+                alt="Meet Icon"
+                width={24}
+                height={24}
+                className="h-6 w-8"
               />
               <div>
-              <Label htmlFor="schedule-meeting" className="text-gray-300 font-medium">
-                Schedule Meeting
-              </Label>
-              <p className="text-xs text-gray-400">Create a virtual meeting link</p>
+                <Label htmlFor="schedule-meeting" className="text-gray-300 font-medium">
+                  Schedule Meeting
+                </Label>
+                <p className="text-xs text-gray-400">Create a virtual meeting link</p>
               </div>
             </div>
             <Switch
@@ -308,46 +408,134 @@ export const EventForm: React.FC<EventFormProps> = ({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="duration" className="text-gray-300">Meeting Duration</Label>
-            <Select value={formData.duration} onValueChange={(value) => handleInputChange('duration', value)}>
-              <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white focus:border-blue-500">
-                <SelectValue placeholder="Select meeting duration" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
-                {durationOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value} className="text-white hover:bg-gray-700">
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {formData.scheduleMeeting && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="duration" className="text-gray-300">Meeting Duration</Label>
+                <Select value={formData.duration} onValueChange={(value) => handleInputChange('duration', value)}>
+                  <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white focus:border-blue-500">
+                    <SelectValue placeholder="Select meeting duration" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    {durationOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="text-white hover:bg-gray-700">
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="attendees" className="text-gray-300">Attendees</Label>
+                <div className="relative">
+                  <Input
+                    id="attendees"
+                    list="attendee-suggestions"
+                    placeholder="Add attendee email"
+                    value={attendeeInput}
+                    onChange={(e) => setAttendeeInput(e.target.value)}
+                    className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addAttendee(attendeeInput);
+                      }
+                    }}
+                  />
+
+                  <datalist id="attendee-suggestions">
+                    {emailSuggestions
+                      .sort((a, b) => b.frequency - a.frequency)
+                      .map((suggestion, index) => (
+                        <option
+                          key={index}
+                          value={suggestion.email}
+                          label={`${suggestion.name || suggestion.email.split('@')[0]} (${suggestion.frequency} events)`}
+                        />
+                      ))}
+                  </datalist>
+
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
+                      onClick={() => addAttendee(attendeeInput)}
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1 bg-gray-700 text-white rounded-md text-sm"
+                      onClick={() => setAttendeeInput('')}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                {formData.attendees && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {formData.attendees.split('\n').filter(email => email.trim()).map((email, index) => {
+                      const attendee = emailSuggestions.find(a => a.email === email);
+                      const name = attendee?.name || email.split('@')[0];
+                      const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 bg-gray-700 text-white px-2 py-1 rounded-md"
+                        >
+                          <Avatar className="h-6 w-6">
+                            {attendee?.photoUrl ? (
+                              <AvatarImage src={attendee.photoUrl} alt={name} />
+                            ) : (
+                              <AvatarFallback className="text-xs bg-gray-600">{initials}</AvatarFallback>
+                            )}
+                          </Avatar>
+                          <span className="text-sm">{name}</span>
+                          <button
+                            type="button"
+                            className="text-gray-400 hover:text-white ml-1"
+                            onClick={() => {
+                              const emails = formData.attendees.split('\n').filter((_, i) => i !== index);
+                              handleInputChange('attendees', emails.join('\n'));
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-gray-300">Description (Optional)</Label>
+            <Label htmlFor="description" className="text-gray-300">Description</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Add event description..."
-              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500 resize-none"
-              rows={3}
+              placeholder="Add event description"
+              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-blue-500"
             />
           </div>
 
           <DialogFooter className="gap-5">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => onOpenChange(false)}
               className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white cursor-pointer"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               type="submit"
-              className="bg-white text-gray-900 hover:bg-gray-100 cursor-pointer"
+              disabled={isSubmitting}
+              className="bg-white text-gray-900 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {event ? 'Update Event' : 'Add Event'}
             </Button>

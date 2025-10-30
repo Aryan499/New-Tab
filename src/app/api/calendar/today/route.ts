@@ -2,10 +2,10 @@ import { auth, clerkClient } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { google, calendar_v3 } from 'googleapis';
 import { GaxiosError } from 'gaxios';
-import { EventRequestBody,CalendarEvent } from "@/types/Routes.type";
+import { EventRequestBody, CalendarEvent } from "@/types/Routes.type";
 
 // Helper function to get an authenticated Google Calendar client
-const getCalendarClient = async (userId: string) => {
+ const getCalendarClient = async (userId: string) => {
   const client = await clerkClient();
   const provider = 'google';
   const clerkOauthResponse = await client.users.getUserOauthAccessToken(userId, provider);
@@ -16,7 +16,7 @@ const getCalendarClient = async (userId: string) => {
   }
 
   const accessToken = oauthAccessTokens[0].token;
-  
+
   const authClient = new google.auth.OAuth2();
   authClient.setCredentials({ access_token: accessToken });
 
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     const today = new Date();
     const startOfDay = new Date(today);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(today);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -54,7 +54,13 @@ export async function GET(request: Request) {
       });
 
       const googleEvents = eventsResponse.data.items || [];
-      
+      // console.log('Retrieved events:', googleEvents.map(e => ({
+      //   id: e.id,
+      //   summary: e.summary,
+      //   start: e.start,
+      //   attendees: e.attendees
+      // })));
+
       const transformedEvents: CalendarEvent[] = googleEvents.map((googleEvent: calendar_v3.Schema$Event) => {
         const startDateTime = new Date(googleEvent.start?.dateTime || googleEvent.start?.date || '');
         const endDateTime = new Date(googleEvent.end?.dateTime || googleEvent.end?.date || '');
@@ -94,7 +100,7 @@ export async function GET(request: Request) {
           time: `${displayHour}:${eventMinute.toString().padStart(2, '0')} ${ampm}`,
           duration: durationString,
           location: googleEvent.location ?? undefined,
-          attendees: googleEvent.attendees ? googleEvent.attendees.length : 0,
+          attendees: googleEvent.attendees ? googleEvent.attendees.map(a => a.email as string) : [],
           priority: 'medium', // Default priority, can be customized
           description: googleEvent.description || '',
           indicator: 'bg-gray-300', // Default indicator
@@ -105,8 +111,8 @@ export async function GET(request: Request) {
         };
       });
 
-      return NextResponse.json({ 
-        message: `Today's calendar events retrieved successfully`, 
+      return NextResponse.json({
+        message: `Today's calendar events retrieved successfully`,
         date: today.toDateString(),
         events: transformedEvents,
         count: transformedEvents.length
@@ -125,7 +131,7 @@ export async function GET(request: Request) {
     }
 
   } catch (error) {
-   
+
     console.error('General Error in GET API route:', error);
     return NextResponse.json({ error: `Internal Server Error: ${error}` }, { status: 500 });
   }
@@ -156,6 +162,7 @@ export async function POST(request: Request) {
           dateTime: eventData.end.dateTime,
           timeZone: 'Asia/Kolkata',
         },
+        attendees: eventData.attendees?.map(email => ({ email })),
       };
 
       if (eventData.createMeetLink) {
@@ -167,6 +174,7 @@ export async function POST(request: Request) {
         };
       }
 
+      // console.log('Creating event:', event);
       const eventResponse = await calendar.events.insert({
         calendarId,
         requestBody: event,
@@ -221,6 +229,7 @@ export async function PUT(request: Request) {
           dateTime: eventData.end.dateTime,
           timeZone: 'Asia/Kolkata',
         },
+        attendees: eventData.attendees?.map(email => ({ email })),
       };
 
       if (eventData.createMeetLink) {
@@ -231,7 +240,7 @@ export async function PUT(request: Request) {
           }
         };
       }
-      
+
       const eventResponse = await calendar.events.update({
         calendarId,
         eventId,

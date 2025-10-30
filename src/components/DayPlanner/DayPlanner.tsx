@@ -32,11 +32,15 @@ const DayPlanner = () => {
     setLoading(true);
     try {
       const res = await axios.get('/api/calendar/today');
+      if (!res.data.events) {
+        throw new Error('No events data received');
+      }
       setEvents(res.data.events); // The backend now sends the transformed data
-      toast.success("Events refreshed successfully!");
+      return true; // Indicate success
     } catch (error) {
       console.error('Error fetching events:', error);
       toast.error("Failed to fetch events.");
+      throw error; // Re-throw to handle in the calling function
     } finally {
       setLoading(false);
     }
@@ -89,18 +93,18 @@ const DayPlanner = () => {
               </div>
             </div>
             <div className="flex gap-3 sm:gap-4">
-              <Button 
+              <Button
                 onClick={() => fetchEvents()}
-                size="lg" 
+                size="lg"
                 variant="outline"
                 className="h-10 w-10 p-0 border-gray-700 text-gray-300 hover:bg-gray-800"
                 disabled={loading}
               >
                 <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
               </Button>
-              <Button 
-                onClick={handleAddEvent} 
-                size="lg" 
+              <Button
+                onClick={handleAddEvent}
+                size="lg"
                 className="h-10 w-10 p-0 bg-white text-gray-900 hover:bg-gray-100"
               >
                 <Plus className="h-5 w-5" />
@@ -192,11 +196,11 @@ const DayPlanner = () => {
           </div>
         )}
       </Card>
-      <EventForm 
-        event={editingEvent ?? undefined} 
+      <EventForm
+        event={editingEvent ?? undefined}
         onSave={fetchEvents} // Pass fetchEvents as the callback
-        onOpenChange={setIsFormOpen} 
-        isOpen={isFormOpen} 
+        onOpenChange={setIsFormOpen}
+        isOpen={isFormOpen}
       />
     </>
   );

@@ -6,7 +6,7 @@ export type Event= {
   time: string;
   duration: string;
   location?: string;
-  attendees?: number;
+  attendees?: string[];
   priority: 'high' | 'medium' | 'low';
   description?: string;
   indicator: string;
