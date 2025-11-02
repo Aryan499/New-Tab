@@ -36,6 +36,7 @@ const DayPlanner = () => {
         throw new Error('No events data received');
       }
       setEvents(res.data.events); // The backend now sends the transformed data
+      
       return true; // Indicate success
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -73,7 +74,10 @@ const DayPlanner = () => {
       toast.error("Failed to delete event. Please try again.", { id: toastId });
     }
   };
-
+  console.log("Events:", events);
+  const timeFormat = (time:Date) => {
+    return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
   return (
     <>
       <Card className="w-full bg-gray-900 border-gray-800 shadow-2xl">
@@ -97,7 +101,7 @@ const DayPlanner = () => {
                 onClick={() => fetchEvents()}
                 size="lg"
                 variant="outline"
-                className="h-10 w-10 p-0 border-gray-700 text-gray-300 hover:bg-gray-800"
+                className="h-10 w-10 p-0 border-gray-700 text-gray-300 hover:bg-gray-800 cursor-pointer hover:text-white hover:border-gray-600"
                 disabled={loading}
               >
                 <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
@@ -105,7 +109,7 @@ const DayPlanner = () => {
               <Button
                 onClick={handleAddEvent}
                 size="lg"
-                className="h-10 w-10 p-0 bg-white text-gray-900 hover:bg-gray-100"
+                className="h-10 w-10 p-0 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer hover:text-gray-900"
               >
                 <Plus className="h-5 w-5" />
               </Button>
@@ -126,14 +130,14 @@ const DayPlanner = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-5 w-5 sm:h-6 sm:w-6 p-0 hover:bg-blue-900/50 text-gray-400 hover:text-blue-400"
+                        className="h-5 w-5 sm:h-6 sm:w-6 p-0 hover:bg-blue-900/50 text-gray-400 hover:text-blue-400 cursor-pointer"
                         onClick={() => window.open(event.meetLink, '_blank')}
                         title="Join Google Meet"
                       >
                         <Video className="h-3 w-3" />
                       </Button>
                     )}
-                    <Button onClick={() => handleEditEvent(event)} variant="ghost" size="sm" className="h-5 w-5 sm:h-6 sm:w-6 p-0 hover:bg-gray-700 text-gray-400 hover:text-white" >
+                    <Button onClick={() => handleEditEvent(event)} variant="ghost" size="sm" className="h-5 w-5 sm:h-6 sm:w-6 p-0 hover:bg-gray-700 text-gray-400 hover:text-white cursor-pointer" >
                       <Edit className="h-3 w-3" />
                     </Button>
                     <AlertDialog>
@@ -164,7 +168,9 @@ const DayPlanner = () => {
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-gray-400">
                   <div className="flex items-center gap-0.5 sm:gap-1">
                     <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                    <span>{event.time}</span>
+                    <span>
+                      {timeFormat(event.date)}
+                    </span>
                     <span className="text-gray-500">({event.duration})</span>
                   </div>
                 </div>
@@ -186,10 +192,10 @@ const DayPlanner = () => {
         {events.length > 0 && (
           <div className="px-6 pb-6 pt-2">
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1 text-sm h-10 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-600" >
+              <Button variant="outline" className="flex-1 text-sm h-10 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-600 cursor-pointer" >
                 View All
               </Button>
-              <Button onClick={handleAddEvent} className="flex-1 text-sm h-10 bg-white text-gray-900 hover:bg-gray-100" >
+              <Button onClick={handleAddEvent} className="flex-1 text-sm h-10 bg-white text-gray-900 hover:bg-gray-100 cursor-pointer" >
                 <Plus className="h-4 w-4 mr-2" /> Add Event
               </Button>
             </div>
